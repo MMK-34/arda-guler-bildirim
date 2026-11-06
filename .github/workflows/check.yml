@@ -1,0 +1,36 @@
+name: Arda Güler gol/asist kontrolü
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: arda-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Kontrol et ve bildir
+        id: bot
+        env:
+          NTFY_TOPIC: arda-guler-gol-mmk34
+        run: python3 bot/check.py
+
+      - name: Durumu kaydet
+        if: steps.bot.outputs.changed == 'true'
+        run: |
+          git config user.name "arda-bot"
+          git config user.email "arda-bot@users.noreply.github.com"
+          git add state/seen.json
+          git commit -m "state: yeni gol/asist olayları" || exit 0
+          git pull --rebase origin main || true
+          git push || true

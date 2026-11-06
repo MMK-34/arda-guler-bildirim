@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Arda Güler Bildirim</title>
+<meta name="description" content="Arda Güler gol veya asist yaptığında anında bildirim alın.">
+<meta name="theme-color" content="#0b0d18">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Arda Güler">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+  :root{
+    --bg:#0b0d18; --bg2:#121527; --card:#171b31; --line:#262b48;
+    --text:#f3f4fa; --muted:#9aa0bd; --gold:#e2b74c; --red:#e30a17; --green:#2ecc71; --blue:#4f8cff;
+    --radius:18px;
+  }
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0b0d18;--card:#171b31}}
+  :root[data-theme="dark"]{--bg:#0b0d18;--card:#171b31}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
+  body{padding:max(12px,env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom));max-width:560px;margin:0 auto}
+  header{display:flex;align-items:center;gap:12px;padding:8px 0 16px}
+  header img{width:52px;height:52px;border-radius:14px}
+  header h1{font-size:20px;margin:0;line-height:1.15}
+  header .sub{color:var(--muted);font-size:13px}
+  .pill{margin-left:auto;font-size:12px;font-weight:600;padding:6px 10px;border-radius:999px;background:var(--bg2);border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+  .pill.live{background:rgba(227,10,23,.15);border-color:var(--red);color:#ff6b74}
+  .pill.live::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red);margin-right:6px;animation:blink 1s infinite}
+  .pill.soon{background:rgba(226,183,76,.12);border-color:var(--gold);color:var(--gold)}
+  @keyframes blink{50%{opacity:.3}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px}
+  .card h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 12px;font-weight:600}
+  .banner{display:flex;gap:12px;align-items:center;background:linear-gradient(135deg,rgba(226,183,76,.18),rgba(227,10,23,.12));border-color:rgba(226,183,76,.5)}
+  .banner p{margin:0;font-size:14px}
+  .banner strong{display:block;font-size:15px;margin-bottom:2px}
+  button{font:inherit;border:0;border-radius:12px;padding:12px 16px;font-weight:600;cursor:pointer;color:#111;background:var(--gold)}
+  button.ghost{background:var(--bg2);color:var(--text);border:1px solid var(--line)}
+  button.small{padding:8px 12px;font-size:13px}
+  button:disabled{opacity:.5;cursor:default}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .match{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;text-align:center}
+  .team{font-weight:700;font-size:15px}
+  .team img{width:44px;height:44px;display:block;margin:0 auto 6px;object-fit:contain}
+  .score{font-size:30px;font-weight:800;letter-spacing:.04em}
+  .clock{font-size:12px;color:var(--muted)}
+  .meta{color:var(--muted);font-size:13px;text-align:center;margin-top:10px}
+  .tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .tile{background:var(--bg2);border-radius:14px;padding:14px;text-align:center}
+  .tile .n{font-size:34px;font-weight:800;color:var(--gold)}
+  .tile .l{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+  .list{display:flex;flex-direction:column;gap:8px}
+  .item{display:flex;gap:12px;align-items:center;background:var(--bg2);border-radius:12px;padding:10px 12px;font-size:14px}
+  .item .ic{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-size:18px;flex:none;background:var(--card)}
+  .item.gol .ic{background:rgba(46,204,113,.15)}
+  .item.asist .ic{background:rgba(79,140,255,.15)}
+  .item .t{flex:1;min-width:0}
+  .item .t b{display:block}
+  .item .t span{color:var(--muted);font-size:12px}
+  .item .r{color:var(--muted);font-size:12px;text-align:right;white-space:nowrap}
+  .empty{color:var(--muted);font-size:14px;text-align:center;padding:8px 0}
+  .foot{color:var(--muted);font-size:12px;text-align:center;margin-top:18px}
+  .foot a{color:var(--muted)}
+  code{background:var(--bg2);padding:2px 6px;border-radius:6px;font-size:13px}
+  .steps{margin:8px 0 0;padding-left:18px;font-size:14px;color:var(--text)}
+  .steps li{margin-bottom:6px}
+  .ok{color:var(--green)}
+  .hidden{display:none}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#fff;color:#111;padding:10px 16px;border-radius:999px;font-weight:600;font-size:14px;box-shadow:0 8px 30px rgba(0,0,0,.4);opacity:0;transition:opacity .25s;pointer-events:none}
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <img src="icons/icon-192.png" alt="">
+  <div>
+    <h1>Arda Güler</h1>
+    <div class="sub">Gol &amp; asist bildirimi</div>
+  </div>
+  <div id="status" class="pill">Yükleniyor…</div>
+</header>
+
+<section id="permCard" class="card banner hidden">
+  <p><strong>Bildirimlere izin ver</strong>Gol veya asist anında telefon titresin.</p>
+  <button id="permBtn">İzin ver</button>
+</section>
+
+<section id="installCard" class="card banner hidden">
+  <p><strong>Ana ekrana ekle</strong><span id="installText">Uygulama gibi çalışsın, bildirimler güvenilir gelsin.</span></p>
+  <button id="installBtn" class="hidden">Yükle</button>
+</section>
+
+<section class="card">
+  <h2 id="matchTitle">Maç</h2>
+  <div id="matchBox"><div class="empty">Yükleniyor…</div></div>
+</section>
+
+<section class="card">
+  <h2>2026-27 Sezonu</h2>
+  <div class="tiles">
+    <div class="tile"><div class="n" id="totG">–</div><div class="l">Gol</div></div>
+    <div class="tile"><div class="n" id="totA">–</div><div class="l">Asist</div></div>
+  </div>
+  <div id="comps" class="list" style="margin-top:10px"></div>
+</section>
+
+<section class="card">
+  <h2>Bildirim geçmişi</h2>
+  <div id="feed" class="list"><div class="empty">Henüz yakalanan gol/asist yok. Maç başlayınca burası dolar.</div></div>
+  <div class="row" style="margin-top:12px">
+    <button id="testBtn" class="ghost small">Test bildirimi</button>
+    <button id="checkBtn" class="ghost small">Şimdi kontrol et</button>
+    <button id="clearBtn" class="ghost small">Geçmişi sil</button>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Uygulama kapalıyken de bildirim</h2>
+  <p style="margin:0 0 8px;font-size:14px">Bu uygulama açıkken (veya arka planda) maçı 40 saniyede bir kontrol eder. Telefon kilitli ve uygulama tamamen kapalıyken de bildirim istiyorsan ücretsiz <b>ntfy</b> kanalına abone ol. Sunucudaki bot maç boyunca her 30 saniyede bakar ve kanala gönderir.</p>
+  <ol class="steps">
+    <li><a id="ntfyStore" href="https://ntfy.sh/" target="_blank" rel="noopener" style="color:var(--gold)">ntfy</a> uygulamasını kur (Android / iOS) ya da web sürümünü aç.</li>
+    <li>Kanal (topic) ekle: <code id="topicCode">arda-guler-gol-mmk34</code></li>
+    <li>Bitti. Bildirimler bu kanaldan gelir.</li>
+  </ol>
+  <div class="row" style="margin-top:12px">
+    <a id="ntfyOpen" href="https://ntfy.sh/arda-guler-gol-mmk34" target="_blank" rel="noopener"><button class="small">ntfy web'de aç</button></a>
+    <button id="copyTopic" class="ghost small">Kanal adını kopyala</button>
+  </div>
+</section>
+
+<div class="foot">Veri: ESPN canlı skor · Son kontrol: <span id="last">–</span><br>Takip: Real Madrid &amp; Türkiye A Millî Takımı</div>
+<div id="toast" class="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
