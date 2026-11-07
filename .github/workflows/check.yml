@@ -1,12 +1,15 @@
 name: Arda Güler gol/asist kontrolü
 
+# Her koşu ~5,5 saat boyunca maçları izler, bitince kendini yeniden başlatır (kesintisiz izleme).
+# Cron sadece zincir koparsa yeniden başlatmak için yedek.
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "*/30 * * * *"
   workflow_dispatch:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: arda-check
@@ -15,22 +18,20 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 355
     steps:
       - uses: actions/checkout@v4
 
-      - name: Kontrol et ve bildir
-        id: bot
+      - name: Maçları izle ve bildir
         env:
           NTFY_TOPIC: arda-guler-gol-mmk34
-        run: python3 bot/check.py
-
-      - name: Durumu kaydet
-        if: steps.bot.outputs.changed == 'true'
         run: |
           git config user.name "arda-bot"
           git config user.email "arda-bot@users.noreply.github.com"
-          git add state/seen.json
-          git commit -m "state: yeni gol/asist olayları" || exit 0
-          git pull --rebase origin main || true
-          git push || true
+          python3 bot/check.py
+
+      - name: Zinciri sürdür
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run check.yml --repo "${{ github.repository }}" --ref main

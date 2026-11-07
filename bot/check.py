@@ -16,7 +16,8 @@ TEAM_IDS = {"86", "465"}
 TOPIC = os.environ.get("NTFY_TOPIC", "arda-guler-gol-mmk34")
 NTFY_URL = os.environ.get("NTFY_URL", "https://ntfy.sh")
 STATE_PATH = os.path.join(os.path.dirname(__file__), "..", "state", "seen.json")
-RUN_BUDGET_SEC = int(os.environ.get("RUN_BUDGET_SEC", "270"))  # cron 5 dk; ~4.5 dk canlı izle
+RUN_BUDGET_SEC = int(os.environ.get("RUN_BUDGET_SEC", "19800"))  # ~5.5 saat izle, sonra zincir yeni koşu başlatır
+HARD_LIMIT_SEC = int(os.environ.get("HARD_LIMIT_SEC", "20700"))  # 5 sa 45 dk; Actions job limiti 6 saat
 LIVE_INTERVAL = 30
 UA = "arda-guler-bildirim (+https://github.com/MMK-34/arda-guler-bildirim)"
 
@@ -158,45 +159,56 @@ def push(item):
         print("ntfy", r.status, title, body)
 
 
+def commit_state(state):
+    """Yeni olay görülünce durumu hemen kaydet; Actions içindeyse commit + push et."""
+    save_state(state)
+    if os.environ.get("GITHUB_ACTIONS") != "true":
+        return
+    import subprocess
+    run = lambda *a: subprocess.run(list(a), check=False)
+    run("git", "add", "state/seen.json")
+    run("git", "commit", "-q", "-m", "state: yeni gol/asist olayları")
+    run("git", "pull", "-q", "--rebase", "origin", "main")
+    run("git", "push", "-q")
+
+
+def next_delay(events):
+    """Canlı maç: 30 sn. Başlamaya 20 dk'dan az / yeni bitti: 60 sn. Aksi halde 10 dk."""
+    if any(state_of(e) == "in" for e in events):
+        return LIVE_INTERVAL
+    for e in events:
+        m = minutes_to(e)
+        if (state_of(e) == "pre" and m < 20) or (state_of(e) == "post" and m > -200):
+            return 60
+    return 600
+
+
 def main():
     state = load_state()
     seen = state.setdefault("seen", [])
-    before = len(seen)
     start = time.time()
-
-    events = tracked_events()
-    print("tracked events:", [(e["id"], e["name"], state_of(e)) for e in events])
-    scan_list = [e for e in events if should_scan(e)]
-    if not scan_list:
-        print("no live/recent match; exit")
-        return finish(state, before)
-
     while True:
-        for ev in scan_list:
+        events = tracked_events()
+        print(time.strftime("%H:%M:%S"), "events:", [(e["id"], e["name"], state_of(e)) for e in events], flush=True)
+        before = len(seen)
+        for ev in [e for e in events if should_scan(e)]:
             for item in scan(ev, seen):
                 try:
                     push(item)
                 except Exception as e:
-                    print("ntfy error", e)
-        live = [e for e in scan_list if state_of(e) == "in"]
-        if not live or time.time() - start > RUN_BUDGET_SEC:
+                    print("ntfy error", e, flush=True)
+        if len(seen) != before:
+            commit_state(state)
+        delay = next_delay(events)
+        left = RUN_BUDGET_SEC - (time.time() - start)
+        # Canlı maç sürerken bütçe dolsa bile maç bitene kadar devam et (job limiti 6 saat).
+        live = any(state_of(e) == "in" for e in events)
+        if left <= 0 and not live:
             break
-        time.sleep(LIVE_INTERVAL)
-        # durumları tazele
-        fresh = {e["id"]: e for e in tracked_events()}
-        scan_list = [fresh.get(e["id"], e) for e in scan_list]
-    return finish(state, before)
-
-
-def finish(state, before):
-    changed = len(state["seen"]) != before
-    if changed:
-        save_state(state)
-    out = os.environ.get("GITHUB_OUTPUT")
-    if out:
-        with open(out, "a", encoding="utf-8") as f:
-            f.write(f"changed={'true' if changed else 'false'}\n")
-    print("changed:", changed)
+        if time.time() - start > HARD_LIMIT_SEC:
+            break
+        time.sleep(delay if live else max(5, min(delay, left)))
+    print("bitti, süre:", int(time.time() - start), "sn", flush=True)
     return 0
 
 
