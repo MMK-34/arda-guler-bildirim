@@ -41,7 +41,9 @@ def load_state():
 
 def save_state(state):
     os.makedirs(os.path.dirname(STATE_PATH), exist_ok=True)
-    state["seen"] = state["seen"][-500:]
+    # Listeyi yerinde kırp: main() aynı liste nesnesine eklemeye devam ediyor.
+    # (Yeni liste atamak, aynı koşudaki 2. olayın kaydedilmemesine ve sonraki koşuda tekrar gönderilmesine yol açıyordu.)
+    del state["seen"][:-500]
     with open(STATE_PATH, "w", encoding="utf-8") as f:
         json.dump(state, f, ensure_ascii=False, indent=0)
 
@@ -156,7 +158,7 @@ def push(item):
     req = urllib.request.Request(NTFY_URL, data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
                                  headers={"Content-Type": "application/json", "User-Agent": UA}, method="POST")
     with urllib.request.urlopen(req, timeout=20) as r:
-        print("ntfy", r.status, title, body)
+        print("ntfy", r.status, title, body, flush=True)
 
 
 def commit_state(state):
